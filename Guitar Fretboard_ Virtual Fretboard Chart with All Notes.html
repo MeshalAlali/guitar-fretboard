@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guitar Fretboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111a;
+      --bg-dark: #081017;
+      --bg-dark-alt: #132131;
+      --bg-light: #e5edf6;
+      --bg-light2: #cfd9e4;
+      --bg-light3: #6d8299;
+      --panel: rgba(9, 16, 25, 0.84);
+      --panel-border: rgba(172, 192, 216, 0.16);
+      --text: #eef4fb;
+      --muted: #9fb0c4;
+      --accent: #e5bfd4;
+      --accent-strong: #d33682;
+      --shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+      --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+      --fretboard-width: 975px;
+      --app-width: min(2400px, calc(100vw - 24px));
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: Tahoma, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(36, 60, 84, 0.95), transparent 34%),
+        linear-gradient(180deg, #122130 0%, #08111a 58%);
+      color: var(--text);
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    sup,
+    sub {
+      font-size: 0.68em;
+      line-height: 0;
+    }
+
+    sup {
+      vertical-align: 0.45em;
+    }
+
+    sub {
+      vertical-align: -0.2em;
+    }
+
+    .app {
+      width: var(--app-width);
+      margin: 20px auto 28px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(18, 29, 43, 0.88), rgba(9, 16, 25, 0.88));
+      border: 1px solid var(--panel-border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel.controls {
+      padding: 18px;
+    }
+
+    .panel.board {
+      padding: 20px 14px 44px;
+      overflow-x: auto;
+      overflow-y: visible;
+      scrollbar-color: rgba(229, 191, 212, 0.45) transparent;
+    }
+
+    .panel.board::-webkit-scrollbar {
+      height: 12px;
+    }
+
+    .panel.board::-webkit-scrollbar-thumb {
+      background: rgba(229, 191, 212, 0.34);
+      border-radius: 999px;
+    }
+
+    .toolbar,
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .toolbar {
+      gap: 16px;
+    }
+
+    .toolbar-group {
+      width: 100%;
+    }
+
+    .toolbar-label {
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .btn,
+    .select {
+      appearance: none;
+      border: 1px solid rgba(229, 191, 212, 0.2);
+      border-radius: 999px;
+      background: rgba(8, 16, 23, 0.76);
+      color: var(--text);
+      padding: 10px 16px;
+      line-height: 1;
+      cursor: pointer;
+      transition:
+        transform 0.15s ease,
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        box-shadow 0.2s ease,
+        opacity 0.2s ease;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    .btn:hover,
+    .select:hover {
+      transform: translateY(-1px);
+      border-color: rgba(211, 54, 130, 0.56);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 16px 30px rgba(0, 0, 0, 0.22);
+    }
+
+    .btn:focus-visible,
+    .select:focus-visible {
+      outline: 2px solid rgba(211, 54, 130, 0.7);
+      outline-offset: 2px;
+    }
+
+    .btn.dim {
+      opacity: 0.35;
+    }
+
+    .btn.active-ui {
+      border-color: rgba(211, 54, 130, 0.72);
+      background: rgba(31, 12, 27, 0.88);
+      color: var(--accent);
+    }
+
+    .btn.note-toggle,
+    .note,
+    .open-note.active-open {
+      --hue: 0;
+    }
+
+    .btn.note-toggle.active,
+    .note.active,
+    .open-note.active-open {
+      background: hsla(var(--hue), 100%, 85%, 0.9);
+      border-color: hsla(var(--hue), 100%, 15%, 0.85);
+      color: var(--bg-dark);
+    }
+
+    .layer-panel {
+      width: 100%;
+      display: grid;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .layer-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px 14px;
+    }
+
+    .layer-hint {
+      color: var(--muted);
+      font-size: 0.94rem;
+      text-align: center;
+    }
+
+    .scratch-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .scratch-item {
+      --layer-fill: rgba(211, 54, 130, 0.82);
+      --layer-border: rgba(211, 54, 130, 0.94);
+      --layer-shell: rgba(211, 54, 130, 0.26);
+      --layer-glow: rgba(211, 54, 130, 0.34);
+      --layer-ink: #f5f8ff;
+      position: relative;
+      display: grid;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 24px;
+      border: 1px solid var(--layer-border);
+      background:
+        linear-gradient(180deg, var(--layer-shell), rgba(8, 16, 23, 0.9) 78%),
+        rgba(8, 16, 23, 0.88);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        0 18px 28px rgba(0, 0, 0, 0.24);
+      overflow-x: auto;
+    }
+
+    .scratch-item.hidden-layer {
+      opacity: 0.68;
+      filter: saturate(0.8);
+    }
+
+    .scratch-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: nowrap;
+      min-width: max-content;
+    }
+
+    .scratch-top,
+    .scratch-block,
+    .scratch-actions,
+    .scratch-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scratch-top {
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .scratch-block {
+      flex: 1 1 420px;
+      color: var(--layer-ink);
+    }
+
+    .scratch-actions {
+      margin-left: auto;
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+
+    .scratch-meta {
+      justify-content: space-between;
+      gap: 12px 16px;
+    }
+
+    .select {
+      padding-right: 40px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5.5 7.5L10 12l4.5-4.5' stroke='%23e5bfd4' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 16px;
+    }
+
+    .scratch-select {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5.5 7.5L10 12l4.5-4.5' stroke='%23ffffff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 16px,
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
+        rgba(8, 16, 23, 0.3);
+      color: var(--layer-ink);
+      min-height: 42px;
+      padding: 10px 38px 10px 14px;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .scratch-select:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    .scratch-select:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.38);
+      outline-offset: 2px;
+    }
+
+    .root-slot {
+      min-width: 98px;
+      color: #050505;
+      font-weight: 900;
+      text-align: center;
+      border-color: rgba(244, 211, 94, 0.98);
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5.5 7.5L10 12l4.5-4.5' stroke='%23050505' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 16px,
+        linear-gradient(180deg, #fff1ad, #e9bc46 58%, #b88417);
+      text-shadow:
+        0 1px 0 #fff4bf,
+        1px 0 0 #f4d35e,
+        -1px 0 0 #f4d35e,
+        0 -1px 0 #f4d35e,
+        1px 1px 0 #f4d35e,
+        -1px 1px 0 #f4d35e,
+        1px -1px 0 #f4d35e,
+        -1px -1px 0 #f4d35e;
+      -webkit-text-stroke: 0.35px #f4d35e;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -1px 0 rgba(114, 75, 7, 0.22),
+        0 0 0 1px rgba(255, 220, 120, 0.18);
+    }
+
+    .root-slot option {
+      color: #050505;
+      background: #f6d76e;
+    }
+
+    .pattern-slot {
+      flex: 1 1 260px;
+      min-width: 240px;
+    }
+
+    .icon-btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(8, 16, 23, 0.32);
+      color: var(--layer-ink);
+      min-height: 38px;
+      min-width: 38px;
+      padding: 8px 10px;
+      font: inherit;
+      line-height: 1;
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      transition:
+        transform 0.15s ease,
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        opacity 0.2s ease;
+    }
+
+    .icon-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(8, 16, 23, 0.45);
+    }
+
+    .icon-btn:disabled {
+      opacity: 0.32;
+      cursor: default;
+    }
+
+    .icon-btn.danger {
+      border-color: rgba(248, 113, 113, 0.28);
+      color: #ffe5e5;
+    }
+
+    .layer-control,
+    .scratch-preview {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 40px;
+      padding: 9px 12px;
+      border-radius: 16px;
+      background: rgba(8, 16, 23, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--layer-ink);
+    }
+
+    .layer-control span,
+    .scratch-preview strong {
+      font-weight: 700;
+    }
+
+    .layer-inline-select {
+      min-width: 116px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+
+    .color-control .layer-inline-select {
+      min-width: 104px;
+    }
+
+    .text-color-control {
+      flex-wrap: nowrap;
+    }
+
+    .text-color-control .color-input {
+      margin-left: 2px;
+    }
+
+    .color-input {
+      width: 38px;
+      height: 30px;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .opacity-control {
+      flex: 1 1 220px;
+    }
+
+    .opacity-range {
+      flex: 1 1 140px;
+      min-width: 140px;
+      cursor: pointer;
+    }
+
+    .scratch-preview {
+      flex: 0 0 auto;
+      min-width: 180px;
+      justify-content: flex-start;
+      text-align: left;
+      line-height: 1.45;
+    }
+
+    .scratch-preview span {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .empty-layers {
+      padding: 16px 18px;
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(8, 16, 23, 0.4);
+      border: 1px dashed rgba(229, 191, 212, 0.18);
+    }
+
+    .guitar {
+      position: relative;
+      display: grid;
+      grid-template-columns: 55px minmax(920px, 1fr);
+      min-width: var(--fretboard-width);
+      color: white;
+    }
+
+    .guitar.lefthanded {
+      grid-template-columns: minmax(920px, 1fr) 55px;
+    }
+
+    .guitar.lefthanded .nut {
+      order: 1;
+    }
+
+    .guitar.lefthanded .fretboard {
+      order: 0;
+      border-radius: 24px 0 0 24px;
+    }
+
+    .guitar.lefthanded .frets {
+      flex-direction: row-reverse;
+    }
+
+    .guitar.lefthanded .fret-1 {
+      border-right-color: hsl(23, 64%, 4%);
+      border-left-color: hsl(23, 64%, 44%);
+    }
+
+    .guitar,
+    .strings {
+      height: 300px;
+    }
+
+    .nut,
+    .strings {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+    }
+
+    .nut {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 32%),
+        hsl(23, 64%, 7%);
+      border-radius: 24px 0 0 24px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .guitar:not(.lefthanded) .nut {
+      background:
+        linear-gradient(to right, hsl(23, 64%, 7%), rgba(0, 0, 0, 0)),
+        hsl(23, 64%, 7%);
+    }
+
+    .guitar.lefthanded .nut {
+      background:
+        linear-gradient(to left, hsl(23, 64%, 7%), rgba(0, 0, 0, 0)),
+        hsl(23, 64%, 7%);
+      border-radius: 0 24px 24px 0;
+    }
+
+    .open-note {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      min-width: 42px;
+      padding: 0.42rem 0.52rem;
+      border-radius: 0.8rem;
+      border: 2px solid transparent;
+      background: rgba(8, 16, 23, 0.85);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+      transition:
+        transform 0.15s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        color 0.2s ease;
+    }
+
+    .fretboard {
+      position: relative;
+      overflow: visible;
+      min-width: calc(var(--fretboard-width) - 55px);
+      border-radius: 0 24px 24px 0;
+      background:
+        var(--noise),
+        repeating-linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.025) 0 20px,
+          rgba(255, 255, 255, 0) 20px 40px
+        ),
+        linear-gradient(
+          180deg,
+          hsl(23, 64%, 5%),
+          hsl(23, 64%, 28%),
+          hsl(23, 64%, 22%)
+        );
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+        inset 0 18px 30px rgba(255, 255, 255, 0.04),
+        inset 0 -18px 28px rgba(0, 0, 0, 0.34);
+    }
+
+    .frets {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-auto-flow: column;
+    }
+
+    .fret {
+      position: relative;
+      min-width: 0;
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      place-items: center;
+      border-left: 2px solid hsl(23, 64%, 44%);
+      border-right: 2px solid hsl(23, 64%, 44%);
+    }
+
+    .fret-label {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translate(-50%, 115%);
+      display: block;
+      padding: 0.48rem 0.6rem;
+      border-radius: 0.45rem;
+      background: var(--bg-light);
+      color: var(--bg-dark);
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .fret-12 .fret-label,
+    .fret-24 .fret-label {
+      border: 2px solid var(--bg-light3);
+      background: var(--bg-dark);
+      color: var(--text);
+      transform: translate(-50%, 115%) scale(1.08);
+    }
+
+    .fret-1 {
+      border-left-color: hsl(23, 64%, 4%);
+    }
+
+    .fret.marker-single::after,
+    .fret.marker-double::before,
+    .fret.marker-double::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: block;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.22) 28%, rgba(255, 255, 255, 0.06) 54%, rgba(0, 0, 0, 0) 56%),
+        radial-gradient(circle at center, rgba(243, 245, 246, 0.98), rgba(199, 207, 213, 0.94) 56%, rgba(125, 136, 144, 0.9));
+      border: 1px solid rgba(245, 248, 250, 0.5);
+      box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.38),
+        inset 0 -1px 2px rgba(37, 45, 50, 0.22),
+        0 0 0 1px rgba(27, 31, 35, 0.16),
+        0 8px 14px rgba(0, 0, 0, 0.14);
+    }
+
+    .fret.marker-single::after {
+      top: 50%;
+    }
+
+    .fret.marker-double::before {
+      top: 31%;
+    }
+
+    .fret.marker-double::after {
+      top: 69%;
+    }
+
+    .string {
+      position: relative;
+      background: linear-gradient(to bottom, #bfbcc2, #e7e4eb, #bfbcc2);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.32);
+    }
+
+    .string-6 {
+      height: 8px;
+    }
+
+    .string-5 {
+      height: 7px;
+    }
+
+    .string-4 {
+      height: 6px;
+    }
+
+    .string-3 {
+      height: 4px;
+    }
+
+    .string-2 {
+      height: 3px;
+    }
+
+    .string-1 {
+      height: 2px;
+    }
+
+    .note {
+      min-width: 43px;
+      aspect-ratio: 1;
+      display: grid;
+      place-content: center;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background: rgba(8, 16, 23, 0.85);
+      color: var(--text);
+      font-weight: 700;
+      z-index: 2;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.26);
+      transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      user-select: none;
+    }
+
+    .chord-line-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    .chord-line-overlay line {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .note.layered,
+    .open-note.layered-open {
+      background: var(--note-fill);
+      border-color: var(--note-border);
+      color: var(--note-text);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04),
+        0 10px 24px var(--note-glow);
+    }
+
+    .note.text-only-layered,
+    .open-note.text-only-layered-open {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .note.text-overlay-layered span,
+    .open-note.text-overlay-layered-open span,
+    .note.text-only-layered span,
+    .open-note.text-only-layered-open span {
+      color: var(--note-text);
+      font-weight: 800;
+      text-shadow:
+        0 1px 0 rgba(8, 16, 23, 0.95),
+        0 0 6px rgba(8, 16, 23, 0.72),
+        0 0 12px rgba(8, 16, 23, 0.4);
+    }
+
+    .note.chord-note-layered,
+    .open-note.chord-note-layered-open {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      min-width: 0;
+      width: auto;
+      aspect-ratio: auto;
+      padding: 0;
+    }
+
+    .note.chord-note-layered span,
+    .open-note.chord-note-layered-open span {
+      color: var(--note-text);
+      font-weight: 800;
+      text-shadow:
+        0 1px 0 rgba(8, 16, 23, 0.95),
+        0 0 6px rgba(8, 16, 23, 0.7),
+        0 0 12px rgba(8, 16, 23, 0.38);
+    }
+
+    .note.root-note-layered span,
+    .open-note.root-note-layered-open span {
+      color: #050505;
+      font-weight: 900;
+      text-shadow:
+        0 1px 0 #fff3ba,
+        1px 0 0 #f4d35e,
+        -1px 0 0 #f4d35e,
+        0 -1px 0 #f4d35e,
+        1px 1px 0 #f4d35e,
+        -1px 1px 0 #f4d35e,
+        1px -1px 0 #f4d35e,
+        -1px -1px 0 #f4d35e,
+        0 0 6px rgba(244, 211, 94, 0.38);
+      -webkit-text-stroke: 0.45px #f4d35e;
+    }
+
+    .note.hidden {
+      background: transparent;
+      border-color: transparent;
+      color: transparent;
+      box-shadow: none;
+    }
+
+    .controls-footer {
+      display: grid;
+      gap: 12px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100%, calc(100% - 12px));
+        margin: 12px auto 18px;
+      }
+
+      .panel.controls {
+        padding: 14px;
+      }
+
+      .scratch-top,
+      .scratch-meta,
+      .scratch-actions {
+        justify-content: center;
+      }
+
+      .scratch-block {
+        justify-content: center;
+      }
+
+      .pattern-slot {
+        min-width: min(100%, 240px);
+      }
+    }
+
+    @media (max-width: 650px) {
+      .panel.board {
+        overflow: visible;
+        padding-top: 9rem;
+        padding-bottom: 35rem;
+      }
+
+      .guitar {
+        transform: rotate(90deg);
+        margin-top: 9rem;
+        margin-bottom: 35rem;
+        min-width: var(--fretboard-width);
+      }
+
+      .note span {
+        transform: rotate(-90deg);
+      }
+
+      .open-note {
+        transform: translate(-50%, -50%) rotate(-90deg);
+      }
+
+      .fretboard {
+        min-width: calc(var(--fretboard-width) - 55px);
+      }
+
+      .fret-label {
+        background: none;
+        color: rgba(238, 244, 251, 0.8);
+        padding: 0;
+        transform: translate(-50%, 115%) rotate(-90deg);
+      }
+    }
+
+    @media (max-width: 450px) {
+      .guitar {
+        margin-top: 6rem !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="panel controls">
+      <div class="toolbar-group" id="view-controls"></div>
+      <div class="toolbar-group" id="note-controls"></div>
+      <div id="layer-panel" class="layer-panel"></div>
+    </section>
+
+    <section class="panel board">
+      <div id="fretboard-root"></div>
+    </section>
+
+    <section class="panel controls">
+      <div class="toolbar-group" id="tuning-controls"></div>
+    </section>
+  </div>
+
+  <script>
+    const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const ROOT_OPTIONS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+    const NOTE_ORDER = [5, 4, 3, 2, 1, 0];
+    const NOTE_HUES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+    const DEFAULT_LAYER_COLORS = ['#d33682', '#fb7185', '#f59e0b', '#14b8a6', '#60a5fa', '#a78bfa', '#22c55e'];
+    const NOTE_TO_PC = {
+      C: 0,
+      'B#': 0,
+      'C#': 1,
+      Db: 1,
+      D: 2,
+      'D#': 3,
+      Eb: 3,
+      E: 4,
+      Fb: 4,
+      F: 5,
+      'E#': 5,
+      'F#': 6,
+      Gb: 6,
+      G: 7,
+      'G#': 8,
+      Ab: 8,
+      A: 9,
+      'A#': 10,
+      Bb: 10,
+      B: 11,
+      Cb: 11
+    };
+
+    const TUNINGS = {
+      standard: {
+        label: 'Standard',
+        notes: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4']
+      },
+      'Drop D': {
+        label: 'Drop D',
+        notes: ['D2', 'A2', 'D3', 'G3', 'B3', 'E4']
+      },
+      'Open G': {
+        label: 'Open G',
+        notes: ['D2', 'G2', 'D3', 'G3', 'B3', 'D4']
+      },
+      DADGAD: {
+        label: 'DADGAD',
+        notes: ['D2', 'A2', 'D3', 'G3', 'A3', 'D4']
+      },
+      'Drop C': {
+        label: 'Drop C',
+        notes: ['C2', 'G2', 'C3', 'F3', 'A3', 'D4']
+      },
+      'Open C': {
+        label: 'Open C',
+        notes: ['C2', 'G2', 'C3', 'G3', 'C4', 'E4']
+      },
+      'Double Drop D': {
+        label: 'Double Drop D',
+        notes: ['D2', 'A2', 'D3', 'G3', 'B3', 'D4']
+      }
+    };
+
+    const PATTERN_LIBRARY = {
+      'major-scale': { label: 'major scale', kind: 'scale', intervals: [0, 2, 4, 5, 7, 9, 11] },
+      'minor-scale': { label: 'minor scale', kind: 'scale', intervals: [0, 2, 3, 5, 7, 8, 10] },
+      'harmonic-minor-scale': { label: 'harmonic minor scale', kind: 'scale', intervals: [0, 2, 3, 5, 7, 8, 11] },
+      'melodic-minor-scale': { label: 'melodic minor scale', kind: 'scale', intervals: [0, 2, 3, 5, 7, 9, 11] },
+      'dorian-scale': { label: 'dorian scale', kind: 'scale', intervals: [0, 2, 3, 5, 7, 9, 10] },
+      'phrygian-scale': { label: 'phrygian scale', kind: 'scale', intervals: [0, 1, 3, 5, 7, 8, 10] },
+      'lydian-scale': { label: 'lydian scale', kind: 'scale', intervals: [0, 2, 4, 6, 7, 9, 11] },
+      'mixolydian-scale': { label: 'mixolydian scale', kind: 'scale', intervals: [0, 2, 4, 5, 7, 9, 10] },
+      'locrian-scale': { label: 'locrian scale', kind: 'scale', intervals: [0, 1, 3, 5, 6, 8, 10] },
+      'major-pentatonic-scale': { label: 'major pentatonic scale', kind: 'scale', intervals: [0, 2, 4, 7, 9] },
+      'minor-pentatonic-scale': { label: 'minor pentatonic scale', kind: 'scale', intervals: [0, 3, 5, 7, 10] },
+      'major-chord': { label: 'major chord', kind: 'chord', intervals: [0, 4, 7] },
+      'minor-chord': { label: 'minor chord', kind: 'chord', intervals: [0, 3, 7] },
+      '5-chord': { label: '5 chord', kind: 'chord', intervals: [0, 7] },
+      '6-chord': { label: '6 chord', kind: 'chord', intervals: [0, 4, 7, 9] },
+      'min6-chord': { label: 'min6 chord', kind: 'chord', intervals: [0, 3, 7, 9] },
+      '7-chord': { label: '7 chord', kind: 'chord', intervals: [0, 4, 7, 10] },
+      'maj7-chord': { label: 'maj7 chord', kind: 'chord', intervals: [0, 4, 7, 11] },
+      'min7-chord': { label: 'min7 chord', kind: 'chord', intervals: [0, 3, 7, 10] },
+      'sus2-chord': { label: 'sus2 chord', kind: 'chord', intervals: [0, 2, 7] },
+      'sus4-chord': { label: 'sus4 chord', kind: 'chord', intervals: [0, 5, 7] },
+      'dim-chord': { label: 'dim chord', kind: 'chord', intervals: [0, 3, 6] },
+      'aug-chord': { label: 'aug chord', kind: 'chord', intervals: [0, 4, 8] },
+      'm7b5-chord': { label: 'm7b5 chord', kind: 'chord', intervals: [0, 3, 6, 10] },
+      'dim7-chord': { label: 'dim7 chord', kind: 'chord', intervals: [0, 3, 6, 9] }
+    };
+
+    const PATTERN_GROUPS = [
+      {
+        label: 'Scales',
+        ids: [
+          'major-scale',
+          'minor-scale',
+          'harmonic-minor-scale',
+          'melodic-minor-scale',
+          'dorian-scale',
+          'phrygian-scale',
+          'lydian-scale',
+          'mixolydian-scale',
+          'locrian-scale',
+          'major-pentatonic-scale',
+          'minor-pentatonic-scale'
+        ]
+      },
+      {
+        label: 'Chords',
+        ids: [
+          'major-chord',
+          'minor-chord',
+          '5-chord',
+          '6-chord',
+          'min6-chord',
+          '7-chord',
+          'maj7-chord',
+          'min7-chord',
+          'sus2-chord',
+          'sus4-chord',
+          'dim-chord',
+          'aug-chord',
+          'm7b5-chord',
+          'dim7-chord'
+        ]
+      }
+    ];
+
+    const STORAGE_KEY = 'guitar-fretboard-standalone-cache-v1';
+    const ELECTRIC_SCALE_LENGTH = 25.5;
+    const CIRCLE_OF_FIFTHS_PRIORITY = [0, 7, 5, 2, 10, 9, 3, 4, 8, 11, 1, 6];
+    const FRET_COUNT_OPTIONS = [12, 13, 15, 17, 21, 22, 24];
+    let nextLayerId = 1;
+
+    const state = {
+      rightHanded: true,
+      showSharps: false,
+      show: new Set(Array.from({ length: 12 }, (_, index) => index)),
+      tuningType: 'standard',
+      fretCount: 13,
+      layers: []
+    };
+
+    const viewControls = document.getElementById('view-controls');
+    const noteControls = document.getElementById('note-controls');
+    const layerPanel = document.getElementById('layer-panel');
+    const fretboardRoot = document.getElementById('fretboard-root');
+    const tuningControls = document.getElementById('tuning-controls');
+
+    function createLayer(overrides = {}) {
+      const layer = {
+        id: `layer-${nextLayerId}`,
+        root: 'C',
+        patternId: 'major-scale',
+        color: DEFAULT_LAYER_COLORS[(nextLayerId - 1) % DEFAULT_LAYER_COLORS.length],
+        colorTarget: 'fill',
+        opacity: 82,
+        textColorMode: 'default',
+        textColor: '#f5f8ff',
+        visible: true,
+        ...overrides
+      };
+
+      nextLayerId += 1;
+      return layer;
+    }
+
+    function noteNameSet() {
+      return state.showSharps ? NOTE_NAMES_SHARP : NOTE_NAMES_FLAT;
+    }
+
+    function pitchClassFromNote(note) {
+      const base = String(note).replace(/[0-9]/g, '');
+      return NOTE_TO_PC[base];
+    }
+
+    function displayName(pc) {
+      return noteNameSet()[pc];
+    }
+
+    function noteHtml(note) {
+      return note
+        .replace('#', '<sup>♯</sup>')
+        .replace('b', '<sub>♭</sub>');
+    }
+
+    function noteText(note) {
+      return note
+        .replace('#', '♯')
+        .replace('b', '♭');
+    }
+
+    function noteHtmlFromPc(pc) {
+      return noteHtml(displayName(pc));
+    }
+
+    function intervalLabelFromSemitone(interval) {
+      const normalized = ((interval % 12) + 12) % 12;
+      if (normalized === 0) {
+        return 'r';
+      }
+
+      const labels = {
+        1: '2',
+        2: '2',
+        3: '3',
+        4: '3',
+        5: '4',
+        6: '5',
+        7: '5',
+        8: '6',
+        9: '6',
+        10: '7',
+        11: '7'
+      };
+
+      return labels[normalized] ?? '2';
+    }
+
+    function patternPitchClasses(root, patternId) {
+      const pattern = PATTERN_LIBRARY[patternId] ?? PATTERN_LIBRARY['major-scale'];
+      const rootPc = pitchClassFromNote(root);
+      return Array.from(new Set(pattern.intervals.map((interval) => (rootPc + interval) % 12)));
+    }
+
+    function patternEntries(root, patternId) {
+      const pattern = PATTERN_LIBRARY[patternId] ?? PATTERN_LIBRARY['major-scale'];
+      const rootPc = pitchClassFromNote(root);
+      const entries = [];
+      const seen = new Set();
+
+      pattern.intervals.forEach((interval, degreeIndex) => {
+        const pc = (rootPc + interval) % 12;
+        if (!seen.has(pc)) {
+          seen.add(pc);
+          entries.push({
+            pc,
+            degreeIndex,
+            interval
+          });
+        }
+      });
+
+      return entries;
+    }
+
+    function circlePriorityIndex(interval) {
+      const normalized = ((interval % 12) + 12) % 12;
+      const index = CIRCLE_OF_FIFTHS_PRIORITY.indexOf(normalized);
+      return index === -1 ? CIRCLE_OF_FIFTHS_PRIORITY.length : index;
+    }
+
+    function entryPriorityIndex(patternKind, interval) {
+      const normalized = ((interval % 12) + 12) % 12;
+
+      if (patternKind === 'chord' && normalized === 10) {
+        return -1;
+      }
+
+      return circlePriorityIndex(normalized);
+    }
+
+    function hueForPc(pc) {
+      return NOTE_HUES[pc];
+    }
+
+    function fretPitchClass(stringIndex, fret) {
+      const tuning = TUNINGS[state.tuningType].notes;
+      return (pitchClassFromNote(tuning[stringIndex]) + fret) % 12;
+    }
+
+    function tuningBaseName(stringIndex) {
+      const tuning = TUNINGS[state.tuningType].notes;
+      return tuning[stringIndex].replace(/[0-9]/g, '');
+    }
+
+    function toggleNote(pc) {
+      if (state.show.has(pc)) {
+        state.show.delete(pc);
+      } else {
+        state.show.add(pc);
+      }
+      render();
+    }
+
+    function setAllNotes() {
+      state.show = new Set(Array.from({ length: 12 }, (_, index) => index));
+      render();
+    }
+
+    function clearNotes() {
+      state.show = new Set();
+      render();
+    }
+
+    function getLayerById(layerId) {
+      return state.layers.find((layer) => layer.id === layerId);
+    }
+
+    function updateLayer(layerId, updates) {
+      const layer = getLayerById(layerId);
+      if (!layer) {
+        return null;
+      }
+
+      Object.assign(layer, updates);
+      return layer;
+    }
+
+    function insertLayerAtTop(overrides = {}) {
+      state.layers.unshift(createLayer(overrides));
+    }
+
+    function duplicateLayer(layerId) {
+      const index = state.layers.findIndex((layer) => layer.id === layerId);
+      if (index === -1) {
+        return;
+      }
+
+      const layer = state.layers[index];
+      const copy = createLayer({
+        root: layer.root,
+        patternId: layer.patternId,
+        color: layer.color,
+        colorTarget: layer.colorTarget,
+        opacity: layer.opacity,
+        textColorMode: layer.textColorMode,
+        textColor: layer.textColor,
+        visible: layer.visible
+      });
+
+      state.layers.splice(index + 1, 0, copy);
+    }
+
+    function deleteLayer(layerId) {
+      state.layers = state.layers.filter((layer) => layer.id !== layerId);
+    }
+
+    function moveLayer(layerId, direction) {
+      const index = state.layers.findIndex((layer) => layer.id === layerId);
+      const nextIndex = index + direction;
+      if (index === -1 || nextIndex < 0 || nextIndex >= state.layers.length) {
+        return;
+      }
+
+      [state.layers[index], state.layers[nextIndex]] = [state.layers[nextIndex], state.layers[index]];
+    }
+
+    function serializeState() {
+      return {
+        rightHanded: state.rightHanded,
+        showSharps: state.showSharps,
+        show: Array.from(state.show),
+        tuningType: state.tuningType,
+        fretCount: state.fretCount,
+        layers: state.layers.map((layer) => ({
+          id: layer.id,
+          root: layer.root,
+          patternId: layer.patternId,
+          color: layer.color,
+          colorTarget: layer.colorTarget,
+          opacity: layer.opacity,
+          textColorMode: layer.textColorMode,
+          textColor: layer.textColor,
+          visible: layer.visible
+        }))
+      };
+    }
+
+    function saveStateToCache() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
+      } catch (error) {
+        console.warn('Could not save fretboard cache:', error);
+      }
+    }
+
+    function loadStateFromCache() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+
+        const cached = JSON.parse(raw);
+        const validLayers = Array.isArray(cached.layers)
+          ? cached.layers
+              .filter((layer) => layer && typeof layer === 'object')
+              .map((layer) => {
+                const overrides = {
+                  root: ROOT_OPTIONS.includes(layer.root) ? layer.root : 'C',
+                  patternId: PATTERN_LIBRARY[layer.patternId] ? layer.patternId : 'major-scale',
+                  colorTarget: layer.colorTarget === 'text-only' ? 'text-only' : 'fill',
+                  opacity: Number.isFinite(Number(layer.opacity)) ? Math.max(15, Math.min(100, Number(layer.opacity))) : 82,
+                  textColorMode: layer.textColorMode === 'custom' ? 'custom' : 'default',
+                  visible: typeof layer.visible === 'boolean' ? layer.visible : true
+                };
+
+                if (typeof layer.id === 'string') {
+                  overrides.id = layer.id;
+                }
+
+                if (typeof layer.color === 'string' && /^#[0-9a-f]{6}$/i.test(layer.color)) {
+                  overrides.color = layer.color;
+                }
+
+                if (typeof layer.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(layer.textColor)) {
+                  overrides.textColor = layer.textColor;
+                }
+
+                return createLayer(overrides);
+              })
+          : [];
+
+        if (typeof cached.rightHanded === 'boolean') {
+          state.rightHanded = cached.rightHanded;
+        }
+
+        if (typeof cached.showSharps === 'boolean') {
+          state.showSharps = cached.showSharps;
+        }
+
+        if (Array.isArray(cached.show)) {
+          state.show = new Set(
+            cached.show
+              .map((value) => Number(value))
+              .filter((value) => Number.isInteger(value) && value >= 0 && value <= 11)
+          );
+        }
+
+        if (TUNINGS[cached.tuningType]) {
+          state.tuningType = cached.tuningType;
+        }
+
+        if (Number.isInteger(cached.fretCount) && FRET_COUNT_OPTIONS.includes(cached.fretCount)) {
+          state.fretCount = cached.fretCount;
+        }
+
+        state.layers = validLayers;
+
+        const ids = validLayers
+          .map((layer) => {
+            const match = /^layer-(\d+)$/.exec(layer.id);
+            return match ? Number(match[1]) : 0;
+          });
+        nextLayerId = Math.max(1, ...ids) + 1;
+      } catch (error) {
+        console.warn('Could not load fretboard cache:', error);
+      }
+    }
+
+    function hexToRgb(hex) {
+      const value = hex.replace('#', '');
+      const normalized = value.length === 3
+        ? value.split('').map((character) => character + character).join('')
+        : value;
+
+      return {
+        r: Number.parseInt(normalized.slice(0, 2), 16),
+        g: Number.parseInt(normalized.slice(2, 4), 16),
+        b: Number.parseInt(normalized.slice(4, 6), 16)
+      };
+    }
+
+    function rgbaString(rgb, alpha) {
+      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+    }
+
+    function textColorForHex(hex) {
+      const { r, g, b } = hexToRgb(hex);
+      const luminance = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+      return luminance > 168 ? '#081017' : '#f5f8ff';
+    }
+
+    function resolveLayerTextColor(layer, fallback) {
+      if (layer.textColorMode === 'custom' && typeof layer.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(layer.textColor)) {
+        return layer.textColor;
+      }
+
+      return fallback;
+    }
+
+    function rgbToHsl(rgb) {
+      const r = rgb.r / 255;
+      const g = rgb.g / 255;
+      const b = rgb.b / 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+
+      if (delta !== 0) {
+        s = delta / (1 - Math.abs((2 * l) - 1));
+
+        switch (max) {
+          case r:
+            h = 60 * (((g - b) / delta) % 6);
+            break;
+          case g:
+            h = 60 * (((b - r) / delta) + 2);
+            break;
+          default:
+            h = 60 * (((r - g) / delta) + 4);
+        }
+      }
+
+      if (h < 0) {
+        h += 360;
+      }
+
+      return {
+        h,
+        s: s * 100,
+        l: l * 100
+      };
+    }
+
+    function hslString(h, s, l, alpha) {
+      return `hsla(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}% / ${alpha})`;
+    }
+
+    function degreeShadeStyle(layer, shadeIndex, degreeCount) {
+      const alpha = layer.opacity / 100;
+      const hsl = rgbToHsl(hexToRgb(layer.color));
+      const darkest = Math.max(16, hsl.l - 20);
+      const lightest = Math.min(84, hsl.l + 18);
+      const step = degreeCount > 1 ? (lightest - darkest) / (degreeCount - 1) : 0;
+      const lightness = Math.min(lightest, darkest + (shadeIndex * step));
+      const saturation = Math.min(96, Math.max(42, hsl.s + 12 - (shadeIndex * 1.4)));
+      const borderLightness = Math.max(18, lightness - 18);
+      const glowLightness = Math.min(88, lightness + 4);
+      const textShade = hslString(hsl.h, Math.min(98, saturation + 4), Math.max(24, Math.min(82, lightness)), 1);
+      const textOnly = layer.colorTarget === 'text-only';
+
+      return {
+        fill: textOnly ? 'transparent' : hslString(hsl.h, saturation, lightness, alpha),
+        border: textOnly ? 'transparent' : hslString(hsl.h, Math.min(96, saturation + 4), borderLightness, Math.min(1, alpha + 0.14)),
+        glow: textOnly ? 'transparent' : hslString(hsl.h, saturation, glowLightness, Math.max(0.22, alpha * 0.42)),
+        noteText: resolveLayerTextColor(layer, textOnly ? textShade : (lightness > 58 ? '#081017' : '#f5f8ff')),
+        ink: '#f5f8ff'
+      };
+    }
+
+    function layerStyle(layer) {
+      const rgb = hexToRgb(layer.color);
+      const alpha = layer.opacity / 100;
+      return {
+        fill: rgbaString(rgb, alpha),
+        border: rgbaString(rgb, Math.min(1, alpha + 0.12)),
+        shell: rgbaString(rgb, Math.max(0.16, alpha * 0.34)),
+        glow: rgbaString(rgb, Math.max(0.24, alpha * 0.44)),
+        noteText: textColorForHex(layer.color),
+        ink: '#f5f8ff'
+      };
+    }
+
+    function layerCssVariables(layer) {
+      const style = layerStyle(layer);
+      return `--layer-fill:${style.fill}; --layer-border:${style.border}; --layer-shell:${style.shell}; --layer-glow:${style.glow}; --layer-ink:${style.ink};`;
+    }
+
+    function applyLayerStylesToElement(element, layer) {
+      if (!element || !layer) {
+        return;
+      }
+
+      const style = layerStyle(layer);
+      element.style.setProperty('--layer-fill', style.fill);
+      element.style.setProperty('--layer-border', style.border);
+      element.style.setProperty('--layer-shell', style.shell);
+      element.style.setProperty('--layer-glow', style.glow);
+      element.style.setProperty('--layer-ink', style.ink);
+      element.classList.toggle('hidden-layer', !layer.visible);
+
+      const opacityLabel = element.querySelector('[data-role="opacity-value"]');
+      if (opacityLabel) {
+        opacityLabel.textContent = `${layer.opacity}%`;
+      }
+
+      const opacityRange = element.querySelector('[data-layer-field="opacity"]');
+      if (opacityRange) {
+        opacityRange.style.accentColor = layer.color;
+      }
+    }
+
+    function renderPatternOptions(selectedId) {
+      return PATTERN_GROUPS.map((group) => `
+        <optgroup label="${group.label}">
+          ${group.ids.map((patternId) => `
+            <option value="${patternId}" ${patternId === selectedId ? 'selected' : ''}>
+              ${PATTERN_LIBRARY[patternId].label}
+            </option>
+          `).join('')}
+        </optgroup>
+      `).join('');
+    }
+
+    function layerPreview(layer) {
+      return patternEntries(layer.root, layer.patternId)
+        .map((entry) => intervalLabelFromSemitone(entry.interval))
+        .map((label) => noteHtml(label))
+        .join(' ');
+    }
+
+    function buildLayerMap() {
+      const noteMap = Array.from({ length: 12 }, () => null);
+
+      for (let index = 0; index < state.layers.length; index += 1) {
+        const layer = state.layers[index];
+        if (!layer.visible) {
+          continue;
+        }
+
+        const rootPc = pitchClassFromNote(layer.root);
+        const entries = patternEntries(layer.root, layer.patternId);
+        const kind = PATTERN_LIBRARY[layer.patternId]?.kind ?? 'scale';
+        const rankedEntries = [...entries].sort((left, right) => (
+          entryPriorityIndex(kind, left.interval) - entryPriorityIndex(kind, right.interval)
+        ));
+
+        rankedEntries.forEach((entry, shadeIndex) => {
+          const style = degreeShadeStyle(layer, shadeIndex, rankedEntries.length);
+          const current = noteMap[entry.pc] ?? {
+            textStyle: null,
+            fillStyle: null,
+            isRoot: false,
+            degreeIndex: 0,
+            kind: 'scale',
+            colorTarget: 'fill',
+            interval: entry.interval,
+            label: intervalLabelFromSemitone(entry.interval)
+          };
+
+          if (!current.textStyle) {
+            current.textStyle = style;
+            current.isRoot = entry.pc === rootPc;
+            current.degreeIndex = entry.degreeIndex;
+            current.kind = kind;
+            current.colorTarget = layer.colorTarget;
+            current.interval = entry.interval;
+            current.label = intervalLabelFromSemitone(entry.interval);
+          }
+
+          if (!current.fillStyle && layer.colorTarget !== 'text-only') {
+            current.fillStyle = style;
+          }
+
+          noteMap[entry.pc] = current;
+        });
+      }
+
+      return noteMap;
+    }
+
+    function noteStyleVariables(entry) {
+      const fillStyle = entry.fillStyle ?? {
+        fill: 'transparent',
+        border: 'transparent',
+        glow: 'transparent'
+      };
+      const textStyle = entry.textStyle ?? fillStyle;
+      return `--note-fill:${fillStyle.fill}; --note-border:${fillStyle.border}; --note-text:${textStyle.noteText}; --note-glow:${fillStyle.glow};`;
+    }
+
+    function noteLayerClass(layerEntry, isOpen = false) {
+      const baseClass = isOpen ? 'layered-open' : 'layered';
+      const rootClass = isOpen ? 'root-note-layered-open' : 'root-note-layered';
+      const usesTextOverlay = layerEntry.colorTarget === 'text-only';
+      const overlayClass = isOpen
+        ? (layerEntry.fillStyle ? 'text-overlay-layered-open' : 'text-only-layered-open')
+        : (layerEntry.fillStyle ? 'text-overlay-layered' : 'text-only-layered');
+
+      return `${baseClass}${usesTextOverlay ? ` ${overlayClass}` : ''}${layerEntry.isRoot ? ` ${rootClass}` : ''}`;
+    }
+
+    function pairAdjacentChordRows(pointsA, pointsB) {
+      const candidates = [];
+
+      pointsA.forEach((pointA, indexA) => {
+        pointsB.forEach((pointB, indexB) => {
+          const fretDistance = Math.abs(pointA.fret - pointB.fret);
+          if (fretDistance <= 3) {
+            candidates.push({
+              indexA,
+              indexB,
+              fretDistance,
+              xDistance: Math.abs(pointA.x - pointB.x)
+            });
+          }
+        });
+      });
+
+      candidates.sort((left, right) => {
+        if (left.fretDistance !== right.fretDistance) {
+          return left.fretDistance - right.fretDistance;
+        }
+
+        return left.xDistance - right.xDistance;
+      });
+
+      const usedA = new Set();
+      const usedB = new Set();
+      const segments = [];
+
+      candidates.forEach((candidate) => {
+        if (usedA.has(candidate.indexA) || usedB.has(candidate.indexB)) {
+          return;
+        }
+
+        usedA.add(candidate.indexA);
+        usedB.add(candidate.indexB);
+        segments.push([pointsA[candidate.indexA], pointsB[candidate.indexB]]);
+      });
+
+      return segments;
+    }
+
+    function buildChordLineMarkup(width, fretNumbers, segmentLengths) {
+      const nutWidth = 55;
+      const boardWidth = width - nutWidth;
+      const boardHeight = 300;
+      const totalLength = segmentLengths.reduce((sum, value) => sum + value, 0);
+      const fretCenters = [];
+      let offset = 0;
+
+      fretNumbers.forEach((fret) => {
+        const segmentWidth = boardWidth * (segmentLengths[fret - 1] / totalLength);
+        fretCenters.push(offset + (segmentWidth / 2));
+        offset += segmentWidth;
+      });
+
+      const overlays = state.layers
+        .map((layer, orderIndex) => ({ layer, orderIndex }))
+        .filter(({ layer }) => layer.visible && (PATTERN_LIBRARY[layer.patternId]?.kind === 'chord'))
+        .map(({ layer, orderIndex }) => {
+          const chordPcs = new Set(patternEntries(layer.root, layer.patternId).map((entry) => entry.pc));
+          const rowPoints = NOTE_ORDER.map((stringIndex, rowIndex) => {
+            const y = ((rowIndex + 0.5) / NOTE_ORDER.length) * boardHeight;
+            const points = [];
+            const openPc = pitchClassFromNote(tuningBaseName(stringIndex));
+
+            if (chordPcs.has(openPc)) {
+              points.push({ x: nutWidth / 2, y, fret: 0, pc: openPc });
+            }
+
+            fretNumbers.forEach((fret, displayIndex) => {
+              const pc = fretPitchClass(stringIndex, fret);
+              if (chordPcs.has(pc)) {
+                points.push({
+                  x: nutWidth + fretCenters[displayIndex],
+                  y,
+                  fret,
+                  pc
+                });
+              }
+            });
+
+            return points;
+          });
+
+          const segments = [];
+          for (let rowIndex = 0; rowIndex < rowPoints.length - 1; rowIndex += 1) {
+            segments.push(...pairAdjacentChordRows(rowPoints[rowIndex], rowPoints[rowIndex + 1]));
+          }
+
+          const alpha = Math.max(0.28, layer.opacity / 100);
+          const strokeOuter = `rgba(8, 16, 23, ${Math.min(0.9, alpha * 0.75)})`;
+          const strokeInner = `rgba(${hexToRgb(layer.color).r}, ${hexToRgb(layer.color).g}, ${hexToRgb(layer.color).b}, ${Math.min(0.92, alpha + 0.1)})`;
+
+          return `
+            <g data-layer-id="${layer.id}" data-layer-order="${orderIndex}">
+              ${segments.map(([start, end]) => `
+                <line x1="${start.x.toFixed(2)}" y1="${start.y.toFixed(2)}" x2="${end.x.toFixed(2)}" y2="${end.y.toFixed(2)}" stroke="${strokeOuter}" stroke-width="12"></line>
+                <line x1="${start.x.toFixed(2)}" y1="${start.y.toFixed(2)}" x2="${end.x.toFixed(2)}" y2="${end.y.toFixed(2)}" stroke="${strokeInner}" stroke-width="7.4"></line>
+              `).join('')}
+            </g>
+          `;
+        })
+        .join('');
+
+      if (!overlays) {
+        return '';
+      }
+
+      return `<svg class="chord-line-overlay" viewBox="0 0 ${width} 300" preserveAspectRatio="none" aria-hidden="true">${overlays}</svg>`;
+    }
+
+    function renderViewControls() {
+      viewControls.innerHTML = `
+        <button class="btn" data-action="toggle-handed">
+          ${state.rightHanded ? '👈 Switch to left handed' : '👉 Switch to right handed'}
+        </button>
+        <button class="btn" data-action="toggle-accidentals">
+          ${state.showSharps ? '<span class="toolbar-label">♭</span> Switch to flats' : '<span class="toolbar-label">♯</span> Switch to sharps'}
+        </button>
+      `;
+    }
+
+    function renderNoteControls() {
+      const buttons = Array.from({ length: 12 }, (_, pc) => {
+        const active = state.show.has(pc);
+        return `
+          <button
+            class="btn note-toggle ${active ? 'active' : 'dim'}"
+            style="--hue:${hueForPc(pc)}"
+            data-action="toggle-note"
+            data-pc="${pc}"
+          >
+            ${noteHtmlFromPc(pc)}
+          </button>
+        `;
+      }).join('');
+
+      noteControls.innerHTML = `
+        <span class="toolbar-label">show notes:</span>
+        <button class="btn" data-action="show-all">All</button>
+        <button class="btn" data-action="show-none">None</button>
+        ${buttons}
+      `;
+    }
+
+    function renderLayerPanel() {
+      layerPanel.innerHTML = `
+        <div class="layer-header">
+          <span class="toolbar-label">scratch layers:</span>
+          <button class="btn" data-action="add-layer">Add scale/chord</button>
+          <span class="layer-hint">Higher boxes win when notes overlap.</span>
+        </div>
+        <div class="scratch-list">
+          ${state.layers.length === 0 ? `
+            <div class="empty-layers">
+              No scale/chord boxes yet. Add one, then choose its key, color, opacity, visibility, and order.
+            </div>
+          ` : state.layers.map((layer, index) => `
+            <article
+              class="scratch-item ${layer.visible ? '' : 'hidden-layer'}"
+              data-layer-id="${layer.id}"
+              style="${layerCssVariables(layer)}"
+            >
+              <div class="scratch-row">
+                <div class="scratch-block">
+                  <select class="scratch-select root-slot" data-layer-id="${layer.id}" data-layer-field="root" aria-label="Layer key">
+                    ${ROOT_OPTIONS.map((note) => `
+                      <option value="${note}" ${layer.root === note ? 'selected' : ''}>${noteText(note)}</option>
+                    `).join('')}
+                  </select>
+                  <select class="scratch-select pattern-slot" data-layer-id="${layer.id}" data-layer-field="patternId" aria-label="Scale or chord">
+                    ${renderPatternOptions(layer.patternId)}
+                  </select>
+                </div>
+                <label class="layer-control color-control">
+                  <span>Color</span>
+                  <input class="color-input" type="color" value="${layer.color}" data-layer-id="${layer.id}" data-layer-field="color" aria-label="Layer color">
+                  <select class="scratch-select layer-inline-select" data-layer-id="${layer.id}" data-layer-field="colorTarget" aria-label="Color application mode">
+                    <option value="fill" ${layer.colorTarget === 'fill' ? 'selected' : ''}>Fill</option>
+                    <option value="text-only" ${layer.colorTarget === 'text-only' ? 'selected' : ''}>Text</option>
+                  </select>
+                </label>
+                <label class="layer-control text-color-control">
+                  <span>Text</span>
+                  <select class="scratch-select layer-inline-select" data-layer-id="${layer.id}" data-layer-field="textColorMode" aria-label="Text color mode">
+                    <option value="default" ${layer.textColorMode === 'default' ? 'selected' : ''}>Default</option>
+                    <option value="custom" ${layer.textColorMode === 'custom' ? 'selected' : ''}>Custom</option>
+                  </select>
+                  ${layer.textColorMode === 'custom' ? `
+                    <input class="color-input" type="color" value="${layer.textColor}" data-layer-id="${layer.id}" data-layer-field="textColor" aria-label="Custom text color">
+                  ` : ''}
+                </label>
+                <label class="layer-control opacity-control">
+                  <span>Opacity</span>
+                  <input class="opacity-range" type="range" min="15" max="100" value="${layer.opacity}" data-layer-id="${layer.id}" data-layer-field="opacity" aria-label="Layer opacity" style="accent-color:${layer.color}">
+                  <strong data-role="opacity-value">${layer.opacity}%</strong>
+                </label>
+                <div class="scratch-preview">
+                  <strong>Notes</strong>
+                  <span>${layerPreview(layer)}</span>
+                </div>
+                <div class="scratch-actions">
+                  <button class="icon-btn" data-action="layer-up" data-layer-id="${layer.id}" title="Move up" ${index === 0 ? 'disabled' : ''}>↑</button>
+                  <button class="icon-btn" data-action="layer-down" data-layer-id="${layer.id}" title="Move down" ${index === state.layers.length - 1 ? 'disabled' : ''}>↓</button>
+                  <button class="icon-btn" data-action="toggle-layer-visibility" data-layer-id="${layer.id}" title="${layer.visible ? 'Hide layer' : 'Show layer'}" aria-label="${layer.visible ? 'Hide layer' : 'Show layer'}">${layer.visible ? '◉' : '◌'}</button>
+                  <button class="icon-btn" data-action="duplicate-layer" data-layer-id="${layer.id}" title="Duplicate layer" aria-label="Duplicate layer">⧉</button>
+                  <button class="icon-btn danger" data-action="delete-layer" data-layer-id="${layer.id}" title="Delete layer" aria-label="Delete layer">✕</button>
+                </div>
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderTuningControls() {
+      tuningControls.innerHTML = `
+        <span class="toolbar-label">Tuning:</span>
+        ${Object.entries(TUNINGS)
+          .map(([key, tuning]) => `
+            <button class="btn ${state.tuningType === key ? 'active-ui' : 'dim'}" data-action="set-tuning" data-tuning="${key}">
+              ${tuning.label}
+            </button>
+          `)
+          .join('')}
+        <span class="toolbar-label">Fret count:</span>
+        ${FRET_COUNT_OPTIONS.map((count) => `
+          <button class="btn ${state.fretCount === count ? 'active-ui' : 'dim'}" data-action="set-fret-count" data-fret-count="${count}">
+            ${count}
+          </button>
+        `).join('')}
+      `;
+    }
+
+    function fretSegmentLengths(fretCount, scaleLength = ELECTRIC_SCALE_LENGTH) {
+      const segments = [];
+      let previousDistance = 0;
+
+      for (let fret = 1; fret <= fretCount; fret += 1) {
+        const distanceFromNut = scaleLength * (1 - (2 ** (-fret / 12)));
+        segments.push(distanceFromNut - previousDistance);
+        previousDistance = distanceFromNut;
+      }
+
+      return segments;
+    }
+
+    function fretboardWidth(fretCount) {
+      return Math.max(975, 55 + (fretCount * 70));
+    }
+
+    function getMarkerClass(fret) {
+      if (fret === 12 || fret === 24) {
+        return 'marker-double';
+      }
+
+      if ([3, 5, 7, 9, 15, 17, 19, 21].includes(fret)) {
+        return 'marker-single';
+      }
+
+      return '';
+    }
+
+    function renderFretboard() {
+      const layerMap = buildLayerMap();
+      const width = fretboardWidth(state.fretCount);
+      const fretNumbers = state.rightHanded
+        ? Array.from({ length: state.fretCount }, (_, fretIndex) => fretIndex + 1)
+        : Array.from({ length: state.fretCount }, (_, fretIndex) => state.fretCount - fretIndex);
+      const segmentLengths = fretSegmentLengths(state.fretCount);
+      const chordLineMarkup = buildChordLineMarkup(width, fretNumbers, segmentLengths);
+      const gridColumns = fretNumbers.map((fret) => `${segmentLengths[fret - 1].toFixed(6)}fr`).join(' ');
+      const fretMarkup = fretNumbers.map((fret) => {
+        const markerClass = getMarkerClass(fret);
+
+        const notes = NOTE_ORDER.map((stringIndex) => {
+          const pc = fretPitchClass(stringIndex, fret);
+          const layerEntry = layerMap[pc];
+          const visible = state.show.has(pc) || Boolean(layerEntry);
+          const className = layerEntry
+            ? noteLayerClass(layerEntry)
+            : visible ? 'active' : 'hidden';
+          const style = layerEntry
+            ? noteStyleVariables(layerEntry)
+            : `--hue:${hueForPc(pc)};`;
+          const noteText = layerEntry
+            ? noteHtml(layerEntry.label)
+            : noteHtmlFromPc(pc);
+
+          return `
+            <div
+              class="note ${className}"
+              style="${style}"
+            >
+              <span>${noteText}</span>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="fret fret-${fret} ${markerClass}" data-fret-nb="${fret}">
+            <span class="fret-label">${fret}</span>
+            ${notes}
+          </div>
+        `;
+      }).join('');
+
+      const openStrings = NOTE_ORDER.map((stringIndex, orderIndex) => {
+        const name = tuningBaseName(stringIndex);
+        const pc = pitchClassFromNote(name);
+        const layerEntry = layerMap[pc];
+        const visible = state.show.has(pc) || Boolean(layerEntry);
+        const className = layerEntry
+          ? noteLayerClass(layerEntry, true)
+          : visible ? 'active-open' : '';
+        const style = layerEntry
+          ? noteStyleVariables(layerEntry)
+          : `--hue:${hueForPc(pc)};`;
+        const noteText = layerEntry
+          ? noteHtml(layerEntry.label)
+          : noteHtml(name);
+
+        return `
+          <div class="string string-${orderIndex + 1}">
+            <div class="open-note ${className}" style="${style}">
+              <span>${noteText}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const overlayStrings = Array.from({ length: 6 }, (_, index) => `<div class="string string-${index + 1}"></div>`).join('');
+
+      fretboardRoot.innerHTML = `
+        <div class="guitar ${state.rightHanded ? '' : 'lefthanded'}" style="--fretboard-width:${width}px;">
+          ${chordLineMarkup}
+          <div class="nut">${openStrings}</div>
+          <div class="fretboard">
+            <div class="frets" style="grid-template-columns:${gridColumns};">${fretMarkup}</div>
+            <div class="strings">${overlayStrings}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      saveStateToCache();
+      renderViewControls();
+      renderNoteControls();
+      renderLayerPanel();
+      renderFretboard();
+      renderTuningControls();
+    }
+
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action]');
+      if (!button) {
+        return;
+      }
+
+      const { action } = button.dataset;
+
+      if (action === 'toggle-handed') {
+        state.rightHanded = !state.rightHanded;
+      }
+
+      if (action === 'toggle-accidentals') {
+        state.showSharps = !state.showSharps;
+      }
+
+      if (action === 'show-all') {
+        setAllNotes();
+        return;
+      }
+
+      if (action === 'show-none') {
+        clearNotes();
+        return;
+      }
+
+      if (action === 'toggle-note') {
+        toggleNote(Number(button.dataset.pc));
+        return;
+      }
+
+      if (action === 'add-layer') {
+        insertLayerAtTop();
+      }
+
+      if (action === 'set-tuning') {
+        state.tuningType = button.dataset.tuning;
+      }
+
+      if (action === 'set-fret-count') {
+        const count = Number(button.dataset.fretCount);
+        if (FRET_COUNT_OPTIONS.includes(count)) {
+          state.fretCount = count;
+        }
+      }
+
+      if (action === 'toggle-layer-visibility') {
+        const layer = getLayerById(button.dataset.layerId);
+        if (layer) {
+          layer.visible = !layer.visible;
+        }
+      }
+
+      if (action === 'duplicate-layer') {
+        duplicateLayer(button.dataset.layerId);
+      }
+
+      if (action === 'delete-layer') {
+        deleteLayer(button.dataset.layerId);
+      }
+
+      if (action === 'layer-up') {
+        moveLayer(button.dataset.layerId, -1);
+      }
+
+      if (action === 'layer-down') {
+        moveLayer(button.dataset.layerId, 1);
+      }
+
+      render();
+    });
+
+    document.addEventListener('input', (event) => {
+      const target = event.target;
+      const { layerField, layerId } = target.dataset;
+
+      if (!layerField || !layerId) {
+        return;
+      }
+
+      if (layerField === 'opacity') {
+        const layer = updateLayer(layerId, { opacity: Number(target.value) });
+        applyLayerStylesToElement(target.closest('.scratch-item'), layer);
+        renderFretboard();
+      }
+
+      if (layerField === 'color') {
+        const layer = updateLayer(layerId, { color: target.value });
+        applyLayerStylesToElement(target.closest('.scratch-item'), layer);
+        renderFretboard();
+      }
+
+      if (layerField === 'textColor') {
+        updateLayer(layerId, { textColor: target.value });
+        renderFretboard();
+      }
+    });
+
+    document.addEventListener('change', (event) => {
+      const target = event.target;
+      const { layerField, layerId } = target.dataset;
+
+      if (!layerField || !layerId) {
+        return;
+      }
+
+      if (layerField === 'root') {
+        updateLayer(layerId, { root: target.value });
+        render();
+      }
+
+      if (layerField === 'patternId') {
+        updateLayer(layerId, { patternId: target.value });
+        render();
+      }
+
+      if (layerField === 'color') {
+        updateLayer(layerId, { color: target.value });
+        render();
+      }
+
+      if (layerField === 'textColorMode') {
+        updateLayer(layerId, { textColorMode: target.value === 'custom' ? 'custom' : 'default' });
+        render();
+      }
+
+      if (layerField === 'colorTarget') {
+        updateLayer(layerId, { colorTarget: target.value === 'text-only' ? 'text-only' : 'fill' });
+        render();
+      }
+
+      if (layerField === 'textColor') {
+        updateLayer(layerId, { textColor: target.value });
+        render();
+      }
+
+      if (layerField === 'opacity') {
+        updateLayer(layerId, { opacity: Number(target.value) });
+        render();
+      }
+    });
+
+    loadStateFromCache();
+    render();
+  </script>
+</body>
+</html>
